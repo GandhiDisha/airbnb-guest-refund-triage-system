@@ -7,7 +7,9 @@ import { createCaseActionMock, createRecommendationMock, createTriageCaseMock, g
 import { createCaseActionSupabase, createRecommendationSupabase, createTriageCaseSupabase, getCaseBundleSupabase } from './supabase';
 
 // No agent-auth system yet (PRD open question) — single placeholder agent for this prototype.
-const PLACEHOLDER_AGENT_ID = 'agent-prototype-user';
+// Must be a real row in the seeded `agents` table (see ../../../seed-data.sql) since Supabase mode
+// inserts this as a foreign key.
+const PLACEHOLDER_AGENT_ID = '10000000-0000-0000-0000-000000000001';
 
 export async function getCaseBundle(bookingId: string): Promise<CaseBundle | null> {
   return config.useMockData ? getCaseBundleMock(bookingId) : getCaseBundleSupabase(bookingId);
