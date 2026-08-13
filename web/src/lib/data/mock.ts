@@ -1,6 +1,13 @@
 import { randomUUID } from 'crypto';
 import { MOCK_BOOKINGS } from '../mock/fixtures';
-import type { AgentSubmission, CaseActionInput, CaseBundle, DecisionResult, NarrativeResult } from '../types';
+import type {
+  AgentSubmission,
+  CaseActionInput,
+  CaseBundle,
+  DecisionResult,
+  NarrativeResult,
+  ReservationSummary,
+} from '../types';
 
 // In-memory only — resets on server restart. Mock mode is for local dev/demo,
 // not durable storage; see ../config.ts.
@@ -10,6 +17,17 @@ const actions: (CaseActionInput & { id: string })[] = [];
 
 export async function getCaseBundleMock(bookingId: string): Promise<CaseBundle | null> {
   return MOCK_BOOKINGS[bookingId] ?? null;
+}
+
+export async function listReservationsMock(): Promise<ReservationSummary[]> {
+  return Object.entries(MOCK_BOOKINGS).map(([bookingId, bundle]) => ({
+    bookingId,
+    guestName: bundle.guest.name,
+    listingTitle: bundle.listing.title,
+    checkInDate: bundle.reservation.checkInDate,
+    checkOutDate: bundle.reservation.checkOutDate,
+    stayStatus: bundle.reservation.stayStatus,
+  }));
 }
 
 export async function createTriageCaseMock(bookingId: string, submission: AgentSubmission): Promise<string> {

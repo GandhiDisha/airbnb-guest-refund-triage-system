@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { AgentSubmission, IssueCategory, TriagePriority } from "@/lib/types";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@/components/ui/combobox";
+import type { AgentSubmission, IssueCategory, ReservationSummary, TriagePriority } from "@/lib/types";
+
+function formatDateRange(checkInDate: string, checkOutDate: string) {
+  const fmt = (d: string) =>
+    new Date(`${d}T00:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  return `${fmt(checkInDate)} → ${fmt(checkOutDate)}`;
+}
 
 const ISSUE_CATEGORIES: IssueCategory[] = [
   "Safety/Security",
@@ -36,6 +50,17 @@ export function ComplaintForm({
   const [evidenceOfClaim, setEvidenceOfClaim] = useState("");
   const [hostResponseTimeHrs, setHostResponseTimeHrs] = useState("");
   const [triagePriority, setTriagePriority] = useState<TriagePriority | "">("");
+  const [reservations, setReservations] = useState<ReservationSummary[]>([]);
+
+  useEffect(() => {
+    fetch("/api/triage/reservations")
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setReservations)
+      .catch(() => setReservations([]));
+  }, []);
+
+  const reservationById = useMemo(() => new Map(reservations.map((r) => [r.bookingId, r])), [reservations]);
+  const bookingIds = useMemo(() => reservations.map((r) => r.bookingId), [reservations]);
 
   const canSubmit = bookingId.trim().length > 0 && issueCategory !== "" && triagePriority !== "" && !isSubmitting;
 
@@ -49,13 +74,43 @@ export function ComplaintForm({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="bookingId">Booking / reservation ID</Label>
-          <Input
-            id="bookingId"
-            placeholder="e.g. EMILY-750"
-            value={bookingId}
-            onChange={(e) => setBookingId(e.target.value)}
-          />
+          <Label htmlFor="bookingId">Booking</Label>
+          <Combobox
+            items={bookingIds}
+            value={bookingId || null}
+            onValueChange={(id) => setBookingId(id ?? "")}
+            itemToStringLabel={(id) => {
+              const r = reservationById.get(id);
+              return r ? `${r.guestName} — ${r.listingTitle}` : id;
+            }}
+            filter={(id, query) => {
+              const r = reservationById.get(id);
+              if (!r) return false;
+              const haystack = `${r.guestName} ${r.listingTitle} ${id}`.toLowerCase();
+              return haystack.includes(query.trim().toLowerCase());
+            }}
+          >
+            <ComboboxInput id="bookingId" placeholder="Search by guest name or listing…" showClear />
+            <ComboboxContent>
+              <ComboboxEmpty>No matching reservations.</ComboboxEmpty>
+              <ComboboxList>
+                {(id: string) => {
+                  const r = reservationById.get(id);
+                  if (!r) return null;
+                  return (
+                    <ComboboxItem key={id} value={id}>
+                      <div className="flex flex-col gap-0.5 py-0.5">
+                        <span className="font-medium">{r.guestName}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {r.listingTitle} · {formatDateRange(r.checkInDate, r.checkOutDate)}
+                        </span>
+                      </div>
+                    </ComboboxItem>
+                  );
+                }}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
         </div>
 
         <div className="space-y-2">

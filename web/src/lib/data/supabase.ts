@@ -13,6 +13,7 @@ import type {
   NarrativeResult,
   PastCase,
   RefundDecision,
+  ReservationSummary,
   Review,
 } from '../types';
 
@@ -61,6 +62,30 @@ async function pastCasesFor(reservationIds: string[]): Promise<PastCase[]> {
         listingId: listingByReservation.get(c.reservation_id) ?? '',
       };
     });
+}
+
+export async function listReservationsSupabase(): Promise<ReservationSummary[]> {
+  const supabase = client();
+  const { data, error } = await supabase
+    .from('reservations')
+    .select('id, check_in_date, check_out_date, stay_status, guests(name), listings(title)')
+    .order('check_in_date', { ascending: false });
+  if (error) throw error;
+
+  return (data ?? []).map((r) => {
+    // Embedded to-one relations can come back as an object or a single-element array
+    // depending on the supabase-js version's relationship inference.
+    const guest = Array.isArray(r.guests) ? r.guests[0] : r.guests;
+    const listing = Array.isArray(r.listings) ? r.listings[0] : r.listings;
+    return {
+      bookingId: r.id,
+      guestName: guest?.name ?? 'Unknown guest',
+      listingTitle: listing?.title ?? 'Unknown listing',
+      checkInDate: r.check_in_date,
+      checkOutDate: r.check_out_date,
+      stayStatus: r.stay_status,
+    };
+  });
 }
 
 export async function getCaseBundleSupabase(bookingId: string): Promise<CaseBundle | null> {

@@ -9,7 +9,7 @@ export default function Home() {
         <p className="text-muted-foreground text-sm">
           Decision support for guest refund complaints.
           {config.useMockData &&
-            " Running on mock data — try booking IDs like EMILY-750, DEREK-360, WEI-330, OLIVIA-390, FATIMA-900."}
+            " Running on mock data — search the booking field by guest name (e.g. Emily, Ryan, Haruto)."}
           {config.useMockLlm && " Rationale/response text is templated (no ANTHROPIC_API_KEY set)."}
         </p>
       </div>

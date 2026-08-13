@@ -2,9 +2,28 @@
 // mock fixtures or real Supabase behind the config.useMockData flag.
 
 import { config } from '../config';
-import type { AgentSubmission, CaseActionInput, CaseBundle, DecisionResult, NarrativeResult } from '../types';
-import { createCaseActionMock, createRecommendationMock, createTriageCaseMock, getCaseBundleMock } from './mock';
-import { createCaseActionSupabase, createRecommendationSupabase, createTriageCaseSupabase, getCaseBundleSupabase } from './supabase';
+import type {
+  AgentSubmission,
+  CaseActionInput,
+  CaseBundle,
+  DecisionResult,
+  NarrativeResult,
+  ReservationSummary,
+} from '../types';
+import {
+  createCaseActionMock,
+  createRecommendationMock,
+  createTriageCaseMock,
+  getCaseBundleMock,
+  listReservationsMock,
+} from './mock';
+import {
+  createCaseActionSupabase,
+  createRecommendationSupabase,
+  createTriageCaseSupabase,
+  getCaseBundleSupabase,
+  listReservationsSupabase,
+} from './supabase';
 
 // No agent-auth system yet (PRD open question) — single placeholder agent for this prototype.
 // Must be a real row in the seeded `agents` table (see ../../../seed-data.sql) since Supabase mode
@@ -13,6 +32,10 @@ const PLACEHOLDER_AGENT_ID = '10000000-0000-0000-0000-000000000001';
 
 export async function getCaseBundle(bookingId: string): Promise<CaseBundle | null> {
   return config.useMockData ? getCaseBundleMock(bookingId) : getCaseBundleSupabase(bookingId);
+}
+
+export async function listReservations(): Promise<ReservationSummary[]> {
+  return config.useMockData ? listReservationsMock() : listReservationsSupabase();
 }
 
 export async function createTriageCase(

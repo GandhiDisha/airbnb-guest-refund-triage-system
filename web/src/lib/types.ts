@@ -62,6 +62,17 @@ export interface CaseBundle {
   hostHistory: PastCase[]; // this host's past cases, any of their listings
 }
 
+// One row per reservation for the booking-picker combobox (product-brief.md §2 — lets an
+// agent search by guest/listing instead of typing/remembering a booking ID).
+export interface ReservationSummary {
+  bookingId: string;
+  guestName: string;
+  listingTitle: string;
+  checkInDate: string;
+  checkOutDate: string;
+  stayStatus: StayStatus;
+}
+
 // The fields an agent actually provides (product-brief.md §2 — nights/booking value moved to auto-fetch)
 export interface AgentSubmission {
   bookingId: string;
