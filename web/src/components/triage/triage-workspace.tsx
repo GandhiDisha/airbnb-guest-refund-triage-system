@@ -4,14 +4,14 @@ import { useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ComplaintForm } from "./complaint-form";
 import { ResultsPanel } from "./results-panel";
-import type { AgentSubmission, TriageResult } from "@/lib/types";
+import type { AnalyzeRequestBody, TriageResult } from "@/lib/types";
 
 export function TriageWorkspace() {
   const [result, setResult] = useState<TriageResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(submission: AgentSubmission) {
+  async function handleSubmit(request: AnalyzeRequestBody) {
     setIsSubmitting(true);
     setError(null);
     setResult(null);
@@ -19,7 +19,7 @@ export function TriageWorkspace() {
       const res = await fetch("/api/triage/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(submission),
+        body: JSON.stringify(request),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

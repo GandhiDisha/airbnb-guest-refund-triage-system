@@ -1,6 +1,18 @@
 // Domain types mirroring supabase-schema.sql enums and tables.
 // Source: ../product-brief.md, ../prd.md
 
+// Curated subset of current-gen Claude models an agent can pick for narration —
+// pricing lives alongside these ids in ../config.ts (MODEL_OPTIONS).
+export const MODEL_IDS = ['claude-haiku-4-5', 'claude-sonnet-5', 'claude-opus-5'] as const;
+export type ModelId = (typeof MODEL_IDS)[number];
+
+export interface ModelOption {
+  id: ModelId;
+  label: string;
+  inputPer1M: number;
+  outputPer1M: number;
+}
+
 export type ListingCategory = 'Entire Property' | 'Shared Room' | 'Private Room';
 export type StayStatus = 'Completed' | 'Ongoing' | 'Upcoming';
 export type IssueCategory =
@@ -108,10 +120,26 @@ export interface DecisionResult {
   factors: DecisionFactors;
 }
 
+// Token usage + cost for one generateNarrative() call. Null when the templated
+// mock fallback ran instead of a real model call (see ../generate-narrative.ts).
+export interface NarrativeUsage {
+  model: ModelId;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+}
+
 // Output of the LLM generation layer — grounded narration of the decision above, nothing more.
 export interface NarrativeResult {
   rationale: string;
   draftResponse: string;
+  usage: NarrativeUsage | null;
+}
+
+// What the client actually posts to /api/triage/analyze — the agent-entered
+// fields plus which model to narrate with (not persisted as part of the case).
+export interface AnalyzeRequestBody extends AgentSubmission {
+  model: ModelId;
 }
 
 export interface TriageResult {

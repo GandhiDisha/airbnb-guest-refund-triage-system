@@ -8,8 +8,8 @@
 import { generateText, Output } from 'ai';
 import { anthropic } from '@ai-sdk/anthropic';
 import { z } from 'zod';
-import { config, ANTHROPIC_MODEL } from './config';
-import type { AgentSubmission, CaseBundle, DecisionResult, NarrativeResult } from './types';
+import { config, DEFAULT_MODEL, MODEL_OPTIONS } from './config';
+import type { AgentSubmission, CaseBundle, DecisionResult, ModelId, NarrativeResult } from './types';
 
 const narrativeSchema = z.object({
   rationale: z
@@ -110,23 +110,41 @@ function templatedFallback(submission: AgentSubmission, bundle: CaseBundle, deci
     draftResponse += ` This has also been escalated to our safety team for direct follow-up.`;
   }
 
-  return { rationale, draftResponse };
+  return { rationale, draftResponse, usage: null };
+}
+
+function computeCostUsd(model: ModelId, inputTokens: number, outputTokens: number): number {
+  const pricing = MODEL_OPTIONS.find((m) => m.id === model);
+  if (!pricing) return 0;
+  return (inputTokens / 1_000_000) * pricing.inputPer1M + (outputTokens / 1_000_000) * pricing.outputPer1M;
 }
 
 export async function generateNarrative(
   submission: AgentSubmission,
   bundle: CaseBundle,
   decision: DecisionResult,
+  model: ModelId = DEFAULT_MODEL,
 ): Promise<NarrativeResult> {
   if (config.useMockLlm) {
     return templatedFallback(submission, bundle, decision);
   }
 
-  const { output } = await generateText({
-    model: anthropic(ANTHROPIC_MODEL),
+  const { output, usage } = await generateText({
+    model: anthropic(model),
     output: Output.object({ schema: narrativeSchema }),
     prompt: buildPrompt(submission, bundle, decision),
   });
 
-  return output;
+  const inputTokens = usage.inputTokens ?? 0;
+  const outputTokens = usage.outputTokens ?? 0;
+
+  return {
+    ...output,
+    usage: {
+      model,
+      inputTokens,
+      outputTokens,
+      costUsd: computeCostUsd(model, inputTokens, outputTokens),
+    },
+  };
 }

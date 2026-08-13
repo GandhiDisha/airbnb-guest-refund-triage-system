@@ -3,9 +3,10 @@ import { z } from 'zod';
 import { computeDecision } from '@/lib/decision-engine';
 import { generateNarrative } from '@/lib/generate-narrative';
 import { createRecommendation, createTriageCase, getCaseBundle } from '@/lib/data';
-import type { AgentSubmission, TriageResult } from '@/lib/types';
+import { DEFAULT_MODEL } from '@/lib/config';
+import { MODEL_IDS, type AgentSubmission, type TriageResult } from '@/lib/types';
 
-const submissionSchema = z.object({
+const requestSchema = z.object({
   bookingId: z.string().min(1),
   issueCategory: z.enum([
     'Safety/Security',
@@ -17,15 +18,16 @@ const submissionSchema = z.object({
   evidenceOfClaim: z.string().default(''),
   hostResponseTimeHrs: z.number().nullable().default(null),
   triagePriority: z.enum(['High', 'Medium', 'Low']),
+  model: z.enum(MODEL_IDS).default(DEFAULT_MODEL),
 });
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const parsed = submissionSchema.safeParse(body);
+  const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid submission', details: parsed.error.flatten() }, { status: 400 });
   }
-  const submission: AgentSubmission = parsed.data;
+  const { model, ...submission }: AgentSubmission & { model: (typeof MODEL_IDS)[number] } = parsed.data;
 
   const bundle = await getCaseBundle(submission.bookingId);
   if (!bundle) {
@@ -33,7 +35,7 @@ export async function POST(request: Request) {
   }
 
   const decision = computeDecision(submission, bundle);
-  const narrative = await generateNarrative(submission, bundle, decision);
+  const narrative = await generateNarrative(submission, bundle, decision, model);
 
   const caseId = await createTriageCase(bundle.reservation.id, submission, bundle.reservation.stayStatus);
   const recommendationId = await createRecommendation(caseId, decision, narrative);

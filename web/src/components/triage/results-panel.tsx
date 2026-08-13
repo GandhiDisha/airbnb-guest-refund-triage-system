@@ -16,7 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MODEL_OPTIONS } from "@/lib/config";
 import type { CaseActionInput, RefundDecision, TriageResult } from "@/lib/types";
+
+function formatCost(costUsd: number) {
+  return costUsd < 0.01 ? `<$0.01` : `$${costUsd.toFixed(costUsd < 1 ? 4 : 2)}`;
+}
 
 const DECISION_LABEL: Record<RefundDecision, string> = {
   full_refund: "Full refund",
@@ -118,6 +123,35 @@ export function ResultsPanel({ result }: { result: TriageResult }) {
           <div>
             <div className="text-muted-foreground text-sm mb-1">Rationale</div>
             <p className="text-sm leading-relaxed">{narrative.rationale}</p>
+          </div>
+          <Separator />
+          <div className="flex flex-wrap gap-6 text-sm">
+            {narrative.usage ? (
+              <>
+                <div>
+                  <div className="text-muted-foreground">Model</div>
+                  <div className="font-mono text-sm">
+                    {MODEL_OPTIONS.find((m) => m.id === narrative.usage!.model)?.label ?? narrative.usage.model}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Input tokens</div>
+                  <div className="font-mono text-sm">{narrative.usage.inputTokens.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Output tokens</div>
+                  <div className="font-mono text-sm">{narrative.usage.outputTokens.toLocaleString()}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Est. cost</div>
+                  <div className="font-mono text-sm">{formatCost(narrative.usage.costUsd)}</div>
+                </div>
+              </>
+            ) : (
+              <div className="text-muted-foreground text-xs">
+                Templated response — no model call (set ANTHROPIC_API_KEY to enable live narration and cost tracking).
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -218,7 +218,7 @@ export async function createRecommendationSupabase(
       safety_escalation: decision.safetyEscalation,
       rationale: narrative.rationale,
       draft_response: narrative.draftResponse,
-      model_version: 'refund-triage-v1',
+      model_version: narrative.usage?.model ?? 'templated-fallback',
     })
     .select('id')
     .single();

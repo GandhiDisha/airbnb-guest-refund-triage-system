@@ -21,7 +21,8 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/combobox";
-import type { AgentSubmission, IssueCategory, ReservationSummary, TriagePriority } from "@/lib/types";
+import type { AnalyzeRequestBody, IssueCategory, ModelId, ReservationSummary, TriagePriority } from "@/lib/types";
+import { DEFAULT_MODEL, MODEL_OPTIONS } from "@/lib/config";
 
 function formatDateRange(checkInDate: string, checkOutDate: string) {
   const fmt = (d: string) =>
@@ -42,7 +43,7 @@ export function ComplaintForm({
   onSubmit,
   isSubmitting,
 }: {
-  onSubmit: (submission: AgentSubmission) => void;
+  onSubmit: (request: AnalyzeRequestBody) => void;
   isSubmitting: boolean;
 }) {
   const [bookingId, setBookingId] = useState("");
@@ -50,6 +51,7 @@ export function ComplaintForm({
   const [evidenceOfClaim, setEvidenceOfClaim] = useState("");
   const [hostResponseTimeHrs, setHostResponseTimeHrs] = useState("");
   const [triagePriority, setTriagePriority] = useState<TriagePriority | "">("");
+  const [model, setModel] = useState<ModelId>(DEFAULT_MODEL);
   const [reservations, setReservations] = useState<ReservationSummary[]>([]);
 
   useEffect(() => {
@@ -169,6 +171,24 @@ export function ComplaintForm({
           </Select>
         </div>
 
+        <div className="space-y-2">
+          <Label htmlFor="model">Model</Label>
+          <Select value={model} onValueChange={(v) => setModel(v as ModelId)}>
+            <SelectTrigger id="model" className="w-full">
+              <SelectValue>
+                {(v: ModelId) => MODEL_OPTIONS.find((m) => m.id === v)?.label ?? v}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {MODEL_OPTIONS.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <Button
           className="w-full"
           disabled={!canSubmit}
@@ -179,6 +199,7 @@ export function ComplaintForm({
               evidenceOfClaim,
               hostResponseTimeHrs: hostResponseTimeHrs.trim() === "" ? null : Number(hostResponseTimeHrs),
               triagePriority: triagePriority as TriagePriority,
+              model,
             })
           }
         >
