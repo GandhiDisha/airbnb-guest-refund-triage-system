@@ -307,6 +307,32 @@ function computeHostAccountabilityMultiplier(bundle: CaseBundle, category: Issue
   return 1.0;
 }
 
+const PHOTO_EVIDENCE_SIGNALS = ['photo', 'video', 'picture', 'screenshot'];
+
+function hasPhotoOrVideoEvidence(evidenceOfClaim: string): boolean {
+  const lower = evidenceOfClaim.toLowerCase();
+  return PHOTO_EVIDENCE_SIGNALS.some((s) => lower.includes(s));
+}
+
+// True when the only accountability signal for this host/category is a public review from a
+// DIFFERENT guest's past stay, with no formal same-issue complaint on this listing's own
+// history (sameIssueOnListing === 0). A guest could construct or embellish a complaint by
+// reading a past public review rather than offering genuine firsthand evidence of their own
+// stay — that review is real corroboration of a *pattern*, but it's weaker support for THIS
+// guest's specific claim than the platform's own recorded complaint history would be, and
+// doesn't substitute for this guest's own evidence. Only matters when paired with the current
+// guest's own evidence lacking any photo/video mention — if they have their own visual proof,
+// the review-only provenance of the pattern signal doesn't matter.
+function hasUnsubstantiatedReviewCorroboration(bundle: CaseBundle, category: IssueCategory, evidenceOfClaim: string): boolean {
+  if (hasPhotoOrVideoEvidence(evidenceOfClaim)) return false;
+  const sameIssueOnListing = bundle.hostHistory.filter(
+    (c) => c.listingId === bundle.reservation.listingId && c.issueCategory === category,
+  ).length;
+  if (sameIssueOnListing > 0) return false;
+  const keywords = CATEGORY_KEYWORDS[category];
+  return bundle.otherReviews.some((r) => messageMatchesCategory(r.reviewText, keywords));
+}
+
 // Narrow on purpose: matches only explicit "this can't be independently confirmed" language
 // about a host's counter-claim (e.g. "host claims prior notice was given by email, not
 // verifiable in this chat log"), not general hedge words like "claims"/"vague"/"no detail" —
@@ -328,12 +354,14 @@ function computeConfidence(
   submission: AgentSubmission,
   bucket: TimingBucket,
   nonEnglish: boolean,
+  bundle: CaseBundle,
 ): number {
   let confidence = 95;
   if (submission.evidenceOfClaim.trim().length === 0) confidence -= 20;
   if (submission.hostResponseTimeHrs === null) confidence -= 15;
   if (bucket === 'ambiguous') confidence -= 25;
   if (hasUnverifiableHostClaim(submission.evidenceOfClaim)) confidence -= 30;
+  if (hasUnsubstantiatedReviewCorroboration(bundle, submission.issueCategory, submission.evidenceOfClaim)) confidence -= 30;
   if (nonEnglish) confidence = Math.min(confidence, 40);
   return Math.min(97, Math.max(5, confidence));
 }
@@ -368,7 +396,7 @@ export function computeDecision(submission: AgentSubmission, bundle: CaseBundle)
     ),
   );
 
-  const confidence = computeConfidence(submission, timingBucket, nonEnglishChatDetected);
+  const confidence = computeConfidence(submission, timingBucket, nonEnglishChatDetected, bundle);
   const needsManualReview = confidence < MANUAL_REVIEW_THRESHOLD;
   const safetyEscalation = category === 'Safety/Security';
 
