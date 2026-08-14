@@ -6,11 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "eval:seed": "tsx scripts/eval/seed-dataset.ts",
+    "eval:run": "tsx scripts/eval/run-eval.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^4.0.36",
     "@base-ui/react": "^1.7.0",
+    "@langfuse/client": "^5.10.0",
     "@supabase/supabase-js": "^2.112.2",
     "ai": "^7.0.58",
     "class-variance-authority": "^0.7.1",
@@ -25,13 +28,18 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@langfuse/otel": "^5.10.0",
+    "@opentelemetry/sdk-node": "^0.221.0",
+    "@opentelemetry/sdk-trace-node": "^2.10.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.0",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   }
 }

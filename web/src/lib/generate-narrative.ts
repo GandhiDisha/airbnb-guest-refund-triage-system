@@ -47,6 +47,7 @@ Timing classification: ${decision.factors.timingBucket}
 Contributing factors: severity=${decision.factors.baseSeverityPct}, evidence=${decision.factors.evidenceMultiplier}, timing=${decision.factors.timingMultiplier}, stayImpact=${decision.factors.stayImpactFraction}, guestCredibility=${decision.factors.guestCredibilityMultiplier}, hostAccountability=${decision.factors.hostAccountabilityMultiplier}
 
 CASE FACTS:
+- Guest: ${bundle.guest.name}
 - Issue category: ${submission.issueCategory}
 - Evidence provided by agent: ${submission.evidenceOfClaim || '(none provided)'}
 - Host response time (agent-reported): ${submission.hostResponseTimeHrs ?? '(not provided)'} hours
