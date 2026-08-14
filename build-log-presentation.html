@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refund Triage — Build Log</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8F%B7%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; }
+  :root {
+    --paper: #F1F4F1;
+    --paper-raised: #FFFFFF;
+    --ink: #14232B;
+    --ink-soft: #46595F;
+    --line: #D3DAD4;
+    --line-strong: #B7C1B9;
+    --accent: #1D6E76;
+    --accent-soft: #DCEAEA;
+    --brass: #A96A29;
+    --brass-soft: #F0DFC4;
+    --good: #35714F;
+    --good-soft: #DCEBDF;
+    --alert: #9B3F29;
+    --alert-soft: #F3DDD3;
+    --shadow: 0 1px 0 rgba(20,35,43,0.06);
+    --radius: 3px;
+    --font-display: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --font-body: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+    --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, 'Roboto Mono', monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #101A1C;
+      --paper-raised: #162325;
+      --ink: #E9EEEA;
+      --ink-soft: #9FB2AC;
+      --line: #263533;
+      --line-strong: #354644;
+      --accent: #4FB6BC;
+      --accent-soft: #17383A;
+      --brass: #DDA25C;
+      --brass-soft: #33261A;
+      --good: #6FBE92;
+      --good-soft: #17301F;
+      --alert: #E28468;
+      --alert-soft: #38211A;
+      --shadow: 0 1px 0 rgba(0,0,0,0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #101A1C;
+    --paper-raised: #162325;
+    --ink: #E9EEEA;
+    --ink-soft: #9FB2AC;
+    --line: #263533;
+    --line-strong: #354644;
+    --accent: #4FB6BC;
+    --accent-soft: #17383A;
+    --brass: #DDA25C;
+    --brass-soft: #33261A;
+    --good: #6FBE92;
+    --good-soft: #17301F;
+    --alert: #E28468;
+    --alert-soft: #38211A;
+    --shadow: 0 1px 0 rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.55;
+    scroll-snap-type: y proximity;
+  }
+  ::selection { background: var(--accent-soft); color: var(--ink); }
+
+  h1, h2, h3 { font-family: var(--font-display); font-weight: 700; text-wrap: balance; margin: 0; }
+  p { margin: 0; }
+  a { color: var(--accent); }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 16px;
+    height: 1px;
+    background: var(--accent);
+    display: inline-block;
+  }
+
+  /* ---------- stub header ---------- */
+  .stub {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 10px 28px;
+    background: var(--paper-raised);
+    border-bottom: 1px solid var(--line);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+  }
+  .stub b { color: var(--ink); font-weight: 600; }
+  .stub .stub-right { display: flex; align-items: center; gap: 18px; }
+  .stub .dots { display: flex; gap: 5px; }
+  .stub .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--line-strong); }
+  .stub .dot.on { background: var(--accent); }
+
+  /* ---------- slide shell ---------- */
+  .slide {
+    scroll-snap-align: start;
+    min-height: 100vh;
+    padding: 96px 8vw 88px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 28px;
+    border-bottom: 1px solid var(--line);
+    position: relative;
+  }
+  .slide-inner { max-width: 980px; margin: 0 auto; width: 100%; }
+  .slide-num {
+    position: absolute;
+    top: 28px;
+    right: 8vw;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--ink-soft);
+    letter-spacing: 0.08em;
+  }
+
+  /* ---------- cover ---------- */
+  .cover { justify-content: center; }
+  .cover .slide-inner { max-width: 880px; }
+  .cover h1 {
+    font-size: clamp(40px, 6.4vw, 76px);
+    line-height: 0.98;
+    letter-spacing: -0.01em;
+    margin-top: 18px;
+  }
+  .cover .accent-word { color: var(--accent); }
+  .cover .dek {
+    font-family: var(--font-body);
+    font-style: italic;
+    font-size: 20px;
+    color: var(--ink-soft);
+    max-width: 46ch;
+    margin-top: 18px;
+  }
+  .manifest {
+    margin-top: 44px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--line-strong);
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .manifest > div {
+    padding: 14px 18px 14px 0;
+    border-right: 1px solid var(--line);
+  }
+  .manifest > div:last-child { border-right: none; }
+  .manifest .k {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: block;
+    margin-bottom: 6px;
+  }
+  .manifest .v {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 16px;
+  }
+
+  /* ---------- section heads ---------- */
+  .head { display: flex; flex-direction: column; gap: 10px; }
+  .head h2 { font-size: clamp(28px, 3.6vw, 42px); letter-spacing: -0.01em; }
+  .head .sub { font-family: var(--font-body); font-size: 17px; color: var(--ink-soft); max-width: 62ch; }
+
+  /* ---------- brief / quote ---------- */
+  .brief-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 56px; align-items: start; }
+  .brief-grid p { font-size: 17.5px; color: var(--ink); }
+  .brief-grid p + p { margin-top: 14px; }
+  blockquote {
+    margin: 0;
+    padding: 22px 24px;
+    background: var(--paper-raised);
+    border-left: 3px solid var(--brass);
+    box-shadow: var(--shadow);
+    font-style: italic;
+    font-size: 16px;
+    color: var(--ink-soft);
+  }
+  blockquote cite {
+    display: block;
+    margin-top: 12px;
+    font-family: var(--font-mono);
+    font-style: normal;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--brass);
+  }
+
+  /* ---------- timeline rail ---------- */
+  .rail { position: relative; margin-top: 20px; }
+  .rail-line { position: absolute; top: 11px; left: 0; right: 0; height: 1px; background: var(--line-strong); }
+  .rail-stops { display: grid; grid-template-columns: repeat(5, 1fr); position: relative; }
+  .rail-stop { display: flex; flex-direction: column; gap: 10px; padding-right: 14px; }
+  .rail-dot {
+    width: 23px; height: 23px; border-radius: 50%;
+    background: var(--paper-raised); border: 1px solid var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-mono); font-size: 10px; color: var(--accent); font-weight: 700;
+    z-index: 1;
+  }
+  .rail-stop .rail-phase { font-family: var(--font-display); font-weight: 700; font-size: 16.5px; margin-top: 4px; }
+  .rail-stop .rail-date { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); letter-spacing: 0.04em; }
+  .rail-stop .rail-desc { font-size: 13.5px; color: var(--ink-soft); max-width: 21ch; line-height: 1.4; }
+
+  /* ---------- phase slides ---------- */
+  .phase-tag {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+    color: var(--paper); background: var(--accent);
+    display: inline-block; padding: 3px 9px; border-radius: 2px;
+  }
+  .work-list { display: flex; flex-direction: column; margin-top: 8px; }
+  .work-item {
+    display: grid; grid-template-columns: 108px 1fr; gap: 22px;
+    padding: 18px 0; border-top: 1px solid var(--line);
+  }
+  .work-item:last-child { border-bottom: 1px solid var(--line); }
+  .work-item .wi-tag {
+    font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.06em;
+    color: var(--ink-soft); text-transform: uppercase; padding-top: 2px;
+  }
+  .work-item h3 { font-size: 17px; font-family: var(--font-display); font-weight: 700; }
+  .work-item .wi-desc { font-size: 15px; color: var(--ink-soft); margin-top: 5px; max-width: 62ch; }
+
+  /* ---------- eval anatomy ---------- */
+  .anatomy { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--line); margin-top: 8px; }
+  .anatomy > div { background: var(--paper-raised); padding: 22px 24px; }
+  .anatomy h4 {
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 12px;
+  }
+  .anatomy ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+  .anatomy li { font-size: 14.5px; color: var(--ink); padding-left: 16px; position: relative; }
+  .anatomy li::before { content: "—"; position: absolute; left: 0; color: var(--ink-soft); }
+  .stat-row { display: flex; gap: 34px; margin-top: 4px; }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat .n { font-family: var(--font-mono); font-size: 30px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .stat .l { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+
+  /* ---------- loop diagram ---------- */
+  .loop { display: flex; flex-wrap: wrap; align-items: center; gap: 0; margin-top: 10px; }
+  .loop-step {
+    font-family: var(--font-mono); font-size: 12.5px; letter-spacing: 0.02em;
+    background: var(--paper-raised); border: 1px solid var(--line-strong);
+    padding: 12px 16px; border-radius: 2px; color: var(--ink);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .loop-step .num { color: var(--accent); font-weight: 700; }
+  .loop-arrow { color: var(--ink-soft); padding: 0 10px; font-size: 15px; }
+
+  /* ---------- results / chart ---------- */
+  .results-top { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px; background: var(--line); margin-top: 6px; }
+  .results-top > div { background: var(--paper-raised); padding: 20px 22px; display: flex; flex-direction: column; gap: 4px; }
+  .results-top .n { font-family: var(--font-mono); font-size: 34px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .results-top .from { font-family: var(--font-mono); font-size: 13px; color: var(--ink-soft); }
+  .results-top .l { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); margin-top: 6px; }
+  .chart-wrap { background: var(--paper-raised); padding: 24px 24px 16px; margin-top: 4px; box-shadow: var(--shadow); }
+  .chart-wrap svg { width: 100%; height: auto; display: block; }
+  .legend { display: flex; gap: 22px; margin-top: 10px; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-soft); }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .legend i { width: 12px; height: 2px; display: inline-block; }
+
+  /* ---------- field notes ---------- */
+  .log { display: flex; flex-direction: column; margin-top: 6px; }
+  .log-entry {
+    display: grid; grid-template-columns: 30px 1fr; gap: 18px;
+    padding: 17px 0; border-top: 1px solid var(--line);
+  }
+  .log-entry:last-child { border-bottom: 1px solid var(--line); }
+  .log-entry .idx { font-family: var(--font-mono); font-size: 12px; color: var(--line-strong); padding-top: 3px; }
+  .log-entry h3 { font-size: 16px; font-family: var(--font-display); font-weight: 700; }
+  .log-entry .credit {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--brass); background: var(--brass-soft); padding: 2px 7px; border-radius: 2px; margin-left: 9px;
+    vertical-align: middle;
+  }
+  .log-entry p { font-size: 14.5px; color: var(--ink-soft); margin-top: 6px; max-width: 66ch; }
+
+  /* ---------- lessons ---------- */
+  .lessons-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); margin-top: 6px; }
+  .lesson { background: var(--paper-raised); padding: 22px 24px; display: flex; flex-direction: column; gap: 8px; }
+  .lesson .ln { font-family: var(--font-mono); font-size: 11px; color: var(--accent); }
+  .lesson h3 { font-size: 16.5px; font-family: var(--font-display); font-weight: 700; }
+  .lesson p { font-size: 14.5px; color: var(--ink-soft); }
+
+  /* ---------- next ---------- */
+  .next-list { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+  .next-item {
+    display: flex; gap: 16px; align-items: flex-start;
+    background: var(--paper-raised); padding: 16px 20px; box-shadow: var(--shadow);
+  }
+  .next-item .pill {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 2px; white-space: nowrap; margin-top: 1px;
+  }
+  .pill.open { background: var(--alert-soft); color: var(--alert); }
+  .pill.watch { background: var(--brass-soft); color: var(--brass); }
+  .next-item p { font-size: 14.5px; color: var(--ink); }
+
+  /* ---------- colophon ---------- */
+  .colophon { min-height: 60vh; justify-content: center; border-bottom: none; }
+  .colophon .head h2 { font-size: clamp(26px, 3.4vw, 36px); }
+  .repo-tags { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .repo-tags span {
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-soft);
+    border: 1px solid var(--line-strong); padding: 5px 10px; border-radius: 2px;
+  }
+
+  @media (max-width: 760px) {
+    .brief-grid, .anatomy, .results-top, .lessons-grid { grid-template-columns: 1fr; }
+    .manifest { grid-template-columns: repeat(2, 1fr); }
+    .rail-stops { grid-template-columns: 1fr 1fr; row-gap: 26px; }
+    .work-item { grid-template-columns: 1fr; gap: 6px; }
+    .slide { padding: 80px 6vw 64px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="stub">
+  <span><b>CASE FILE 27-R</b> · GUEST REFUND TRIAGE</span>
+  <span class="stub-right">
+    <span>BUILD LOG</span>
+    <span class="dots">
+      <i class="dot on"></i><i class="dot on"></i><i class="dot on"></i><i class="dot on"></i>
+    </span>
+  </span>
+</header>
+
+<main class="deck">
+
+  <!-- COVER -->
+  <section class="slide cover">
+    <div class="slide-inner">
+      <span class="eyebrow">Product build log · Aug 8–14, 2026 · 7 working days</span>
+      <h1>Shipping a refund<br>engine — then proving<br>it <span class="accent-word">deserves trust.</span></h1>
+      <p class="dek">Seven working days building an AI-assisted guest-refund triage tool with Claude: from a written brief to a 27-case golden eval suite, an Opus-5 judge, and a decision engine whose accuracy is now measured, not assumed.</p>
+      <div class="manifest">
+        <div><span class="k">Role</span><span class="v">Product manager</span></div>
+        <div><span class="k">Built with</span><span class="v">Claude (Sonnet 5 · Opus 5)</span></div>
+        <div><span class="k">Decision accuracy</span><span class="v">44.4% → 100%</span></div>
+        <div><span class="k">Refund accuracy</span><span class="v">12.5% → 66.7%</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MISSION BRIEF -->
+  <section class="slide brief">
+    <div class="slide-inner">
+      <div class="head">
+        <span class="eyebrow">The assignment</span>
+        <h2>The same complaint can be three different stories.</h2>
+      </div>
+      <div class="brief-grid" style="margin-top: 8px;">
+        <div>
+          <p>"AC broken" can be a genuine, evidenced, in-stay-reported issue — or an unreported non-issue surfacing only at checkout — or an opportunistic claim. An agent has seconds to tell those apart, and getting it wrong in either direction has a real cost: over-refund erodes host trust and revenue, under-refund erodes guest trust and retention.</p>
+          <p>The tool doesn't decide — it triages. It reads the reservation, the chat log, the listing, and both parties' history, then hands the agent a recommended decision, an amount, and a draft response to review and send. The agent keeps the pen the whole time.</p>
+        </div>
+        <blockquote>
+          "Nothing in the problem statement specifies how booking value, nights, issue category, and severity combine into a refund percentage. Airbnb's own AirCover policy is itself not formulaic — it's explicitly case-by-case."
+          <cite>product-brief.md · §3, hidden requirement 5</cite>
+        </blockquote>
+      </div>
+    </div>
+  </section>
+
+  <!-- TIMELINE -->
+  <section class="slide timeline">
+    <div class="slide-inner">
+      <div class="head">
+        <span class="eyebrow">Seven days, start to finish</span>
+        <h2>Scope it, build it, ship it, then earn the score.</h2>
+      </div>
+      <div class="rail">
+        <div class="rail-line"></div>
+        <div class="rail-stops">
+          <div class="rail-stop">
+            <div class="rail-dot">1</div>
+            <div class="rail-phase">Scope</div>
+            <div class="rail-date">AUG 8</div>
+            <div class="rail-desc">Problem statement, schema, seed data, and the product brief — written before any code.</div>
+          </div>
+          <div class="rail-stop">
+            <div class="rail-dot">2</div>
+            <div class="rail-phase">Build</div>
+            <div class="rail-date">AUG 11</div>
+            <div class="rail-desc">Deterministic decision engine + LLM narration, built from the Aug 8 brief.</div>
+          </div>
+          <div class="rail-stop">
+            <div class="rail-dot">3</div>
+            <div class="rail-phase">Ship</div>
+            <div class="rail-date">AUG 13</div>
+            <div class="rail-desc">Data parity, real UX fixes, a model picker with live cost, deployed to production.</div>
+          </div>
+          <div class="rail-stop">
+            <div class="rail-dot">4</div>
+            <div class="rail-phase">Instrument</div>
+            <div class="rail-date">AUG 14 · AM</div>
+            <div class="rail-desc">27-case golden set, Langfuse, Opus-5 as a fixed judge. First real score: 44.4%.</div>
+          </div>
+          <div class="rail-stop">
+            <div class="rail-dot">5</div>
+            <div class="rail-phase">Harden</div>
+            <div class="rail-date">AUG 14 · PM</div>
+            <div class="rail-desc">Nine targeted fixes, each re-verified against all 27 cases and a full re-run.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHASE 1 -->
+  <section class="slide phase phase-1">
+    <div class="slide-inner">
+      <span class="phase-tag">PHASE 1 · BUILD &amp; SHIP</span>
+      <div class="head" style="margin-top: 14px;">
+        <h2>Make it real before making it right.</h2>
+        <p class="sub">A working product first — deployed, usable, and honest about its own uncertainty — before any claim about quality.</p>
+      </div>
+      <div class="work-list">
+        <div class="work-item">
+          <div class="wi-tag">Core</div>
+          <div><h3>Deterministic decision engine + LLM narration</h3><p class="wi-desc">The refund percentage is computed from structured signals, deliberately <em>not</em> an LLM call — so it's consistent and testable run-to-run. A separate narration layer explains the fixed decision; it never re-derives it.</p></div>
+        </div>
+        <div class="work-item">
+          <div class="wi-tag">Data</div>
+          <div><h3>Mock/Supabase parity fix</h3><p class="wi-desc">Local fixtures had drifted from the seed data, including a real scoring bug in the host-accountability multiplier — caught by comparing the two sources line for line, not by guessing.</p></div>
+        </div>
+        <div class="work-item">
+          <div class="wi-tag">UX</div>
+          <div><h3>Booking-ID search, not memorization</h3><p class="wi-desc">Raw UUIDs were "difficult to remember" for agents — replaced the text field with a searchable combobox instead of just shortening the ID.</p></div>
+        </div>
+        <div class="work-item">
+          <div class="wi-tag">Transparency</div>
+          <div><h3>Model picker with live cost/token display</h3><p class="wi-desc">Agents choose which Claude model narrates a complaint (Haiku 4.5 / Sonnet 5 / Opus 5) and see the real input/output token count and estimated cost per analysis — no black box.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PHASE 2 -->
+  <section class="slide phase phase-2">
+    <div class="slide-inner">
+      <span class="phase-tag">PHASE 2 · INSTRUMENT</span>
+      <div class="head" style="margin-top: 14px;">
+        <h2>You can't improve what you haven't measured.</h2>
+        <p class="sub">Before touching the engine again, build a way to know — objectively, repeatably — whether a change made it better or worse.</p>
+      </div>
+      <div class="anatomy">
+        <div>
+          <h4>The golden set</h4>
+          <ul>
+            <li>27 hand-labeled cases, expert-adjudicated ground truth</li>
+            <li>All 5 issue categories × the full legitimacy spectrum</li>
+            <li>1 demographic-coded bias-audit pair, identical facts</li>
+            <li>4 cases re-run 3× each to measure run-to-run consistency</li>
+          </ul>
+        </div>
+        <div>
+          <h4>The rubric — 8 dimensions</h4>
+          <ul>
+            <li>5 programmatic: decision, amount, safety recall, consistency, bias delta</li>
+            <li>3 Opus-judged: groundedness, tone &amp; liability, explainability</li>
+            <li>Judge is given the case + output — never the golden answer</li>
+            <li>Opus-5 fixed as judge, independent of which model narrates</li>
+          </ul>
+        </div>
+      </div>
+      <blockquote style="margin-top: 4px;">
+        "The judge must never be more permissive than the system it's grading — using a top-tier model as judge keeps that invariant true even as the app's own model choice changes."
+        <cite>eval-criteria.md · judge model rationale</cite>
+      </blockquote>
+    </div>
+  </section>
+
+  <!-- PHASE 3 -->
+  <section class="slide phase phase-3">
+    <div class="slide-inner">
+      <span class="phase-tag">PHASE 3 · HARDEN</span>
+      <div class="head" style="margin-top: 14px;">
+        <h2>One loop, run nine times.</h2>
+        <p class="sub">Every fix in this project followed the same discipline — evidence in, evidence out, no exceptions.</p>
+      </div>
+      <div class="loop">
+        <span class="loop-step"><span class="num">1</span>Diagnose from a real mismatch</span><span class="loop-arrow">→</span>
+        <span class="loop-step"><span class="num">2</span>Verify against actual code &amp; data</span><span class="loop-arrow">→</span>
+        <span class="loop-step"><span class="num">3</span>Fix narrowly, one cause</span><span class="loop-arrow">→</span>
+        <span class="loop-step"><span class="num">4</span>Re-check all 27 cases</span><span class="loop-arrow">→</span>
+        <span class="loop-step"><span class="num">5</span>Re-run the full eval</span><span class="loop-arrow">→</span>
+        <span class="loop-step"><span class="num">6</span>Report before/after, honestly</span>
+      </div>
+      <div class="stat-row" style="margin-top: 28px;">
+        <div class="stat"><span class="n">10</span><span class="l">Full eval runs</span></div>
+        <div class="stat"><span class="n">9</span><span class="l">Independently verified fixes</span></div>
+        <div class="stat"><span class="n">0</span><span class="l">Regressions carried forward</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="slide results">
+    <div class="slide-inner">
+      <div class="head">
+        <span class="eyebrow">The score, over 10 runs</span>
+        <h2>From a coin flip to a system you can defend.</h2>
+      </div>
+      <div class="results-top">
+        <div>
+          <span class="n" style="color:var(--good)">100%</span>
+          <span class="from">from 44.4%</span>
+          <span class="l">Decision accuracy</span>
+        </div>
+        <div>
+          <span class="n" style="color:var(--accent)">66.7%</span>
+          <span class="from">from 12.5%</span>
+          <span class="l">Refund-amount accuracy</span>
+        </div>
+        <div>
+          <span class="n" style="color:var(--ink)">100%</span>
+          <span class="from">flat, all 10 runs</span>
+          <span class="l">Safety escalation recall</span>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <svg viewBox="0 0 640 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Line chart of decision accuracy rising from 44.4% to 100%, and refund amount accuracy rising from 12.5% to 66.7%, across 10 evaluation runs.">
+          <!-- gridlines -->
+          <g stroke="var(--line)" stroke-width="1">
+            <line x1="40" y1="20" x2="600" y2="20"></line>
+            <line x1="40" y1="70" x2="600" y2="70"></line>
+            <line x1="40" y1="120" x2="600" y2="120"></line>
+            <line x1="40" y1="170" x2="600" y2="170"></line>
+            <line x1="40" y1="220" x2="600" y2="220"></line>
+          </g>
+          <g font-family="ui-monospace, SF Mono, Menlo, Consolas, monospace" font-size="9.5" fill="var(--ink-soft)">
+            <text x="8" y="23">100</text>
+            <text x="14" y="73">75</text>
+            <text x="14" y="123">50</text>
+            <text x="14" y="173">25</text>
+            <text x="20" y="223">0</text>
+          </g>
+          <!-- decision accuracy line -->
+          <polyline fill="none" stroke="var(--good)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"
+            points="40,131.2 102.2,71.8 164.4,71.8 226.7,49.6 288.9,34.8 351.1,20 413.3,20 475.6,20 537.8,20 600,20"></polyline>
+          <!-- refund amount accuracy line -->
+          <polyline fill="none" stroke="var(--accent)" stroke-width="2.25" stroke-linejoin="round" stroke-linecap="round"
+            points="40,195 102.2,195 164.4,195 226.7,195 288.9,178.4 351.1,178.4 413.3,178.4 475.6,111.6 537.8,95 600,86.6"></polyline>
+          <!-- endpoint markers -->
+          <circle cx="40" cy="131.2" r="3" fill="var(--good)"></circle>
+          <circle cx="600" cy="20" r="3.5" fill="var(--good)"></circle>
+          <circle cx="40" cy="195" r="3" fill="var(--accent)"></circle>
+          <circle cx="600" cy="86.6" r="3.5" fill="var(--accent)"></circle>
+          <g font-family="ui-monospace, SF Mono, Menlo, Consolas, monospace" font-size="10.5" font-weight="600">
+            <text x="606" y="24" fill="var(--good)">100%</text>
+            <text x="606" y="90.6" fill="var(--accent)">66.7%</text>
+          </g>
+          <g font-family="ui-monospace, SF Mono, Menlo, Consolas, monospace" font-size="9" fill="var(--ink-soft)">
+            <text x="40" y="240">run 1</text>
+            <text x="580" y="240">run 10</text>
+          </g>
+        </svg>
+        <div class="legend">
+          <span><i style="background:var(--good)"></i>Decision accuracy</span>
+          <span><i style="background:var(--accent)"></i>Refund-amount accuracy (±10% tolerance)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FIELD NOTES -->
+  <section class="slide fieldnotes">
+    <div class="slide-inner">
+      <div class="head">
+        <span class="eyebrow">Field notes</span>
+        <h2>Seven catches worth remembering.</h2>
+      </div>
+      <div class="log">
+        <div class="log-entry">
+          <span class="idx">01</span>
+          <div>
+            <h3>The dataset had the bug, not the engine</h3>
+            <p>8 of 27 golden cases had single-message chat logs, making "was this raised in-stay or at checkout" mathematically undecidable. The eval doesn't just grade the tool — it has to be graded itself.</p>
+          </div>
+        </div>
+        <div class="log-entry">
+          <span class="idx">02</span>
+          <div>
+            <h3>The RAG that turned out not to be needed <span class="credit">PM hypothesis, tested</span></h3>
+            <p>The working theory was "we probably need retrieval to synthesize chat evidence." Checking the actual token footprint first (every case fits in ~500–2,000 tokens — nothing to retrieve) surfaced two real prompt bugs instead of a speculative rebuild.</p>
+          </div>
+        </div>
+        <div class="log-entry">
+          <span class="idx">03</span>
+          <div>
+            <h3>"That's normal" isn't the same as "that's fine"</h3>
+            <p>Matching and timing were both already correct — the engine just couldn't tell a host confirming a real problem from a host explaining it away as expected behavior. Same evidence boost either way, until a phrase check on the host's reply fixed it.</p>
+          </div>
+        </div>
+        <div class="log-entry">
+          <span class="idx">04</span>
+          <div>
+            <h3>A curly quote broke a keyword match</h3>
+            <p>"isn't working" (straight apostrophe) never matched "isn't working" (curly apostrophe) in the actual chat text. String heuristics are only as reliable as the character set they assume.</p>
+          </div>
+        </div>
+        <div class="log-entry">
+          <span class="idx">05</span>
+          <div>
+            <h3>A bonus every other category got, on principle — not on a raw count <span class="credit">PM catch</span></h3>
+            <p>Host Responsiveness was structurally locked out of the same evidence bonus every other category earned, since "no reply" can't corroborate the way a host's reply does. The fix couldn't just count any unanswered message either — it had to be a real question or complaint, not a check-in "here" or "leaving," or it would've rewarded noise instead of signal.</p>
+          </div>
+        </div>
+        <div class="log-entry">
+          <span class="idx">06</span>
+          <div>
+            <h3>Whose evidence is it, really? <span class="credit">PM catch</span></h3>
+            <p>A case leaned on a different guest's past review as corroboration, while the current guest offered no photo of their own. Reading a public review isn't the same as proving your own claim — that distinction now lowers confidence and routes the case to manual review.</p>
+          </div>
+        </div>
+        <div class="log-entry">
+          <span class="idx">07</span>
+          <div>
+            <h3>The spec had already answered the question</h3>
+            <p>The written brief called Safety/Security "escalation-first, not primarily a refund-pct case" — but the code weighted it highest of all five categories. Re-reading the spec, not just the golden numbers, was the actual fix.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LESSONS -->
+  <section class="slide lessons">
+    <div class="slide-inner">
+      <div class="head">
+        <span class="eyebrow">For a PM, not just an engineer</span>
+        <h2>What this exercise actually teaches.</h2>
+      </div>
+      <div class="lessons-grid">
+        <div class="lesson">
+          <span class="ln">01</span>
+          <h3>Eval-driven beats vibe-checking</h3>
+          <p>A golden set plus a judge turns "this feels right" into a number you can re-run after every change and defend to a stakeholder.</p>
+        </div>
+        <div class="lesson">
+          <span class="ln">02</span>
+          <h3>Fix the judge, vary the system</h3>
+          <p>Opus-5 stayed the constant referee across every run, regardless of which model narrated — so a score change could only mean the product changed.</p>
+        </div>
+        <div class="lesson">
+          <span class="ln">03</span>
+          <h3>Write the spec before the code</h3>
+          <p>The brief's "escalation-first" framing for Safety wasn't front of mind at build time — but it settled a real calibration debate six days later.</p>
+        </div>
+        <div class="lesson">
+          <span class="ln">04</span>
+          <h3>Bugs hide at every layer</h3>
+          <p>Dataset authoring, prompt wording, character encoding, and formula calibration each produced a real, measurable miss — not just "the code."</p>
+        </div>
+        <div class="lesson">
+          <span class="ln">05</span>
+          <h3>Test the hypothesis before building it</h3>
+          <p>"We probably need RAG" was a reasonable guess. Checking the actual token footprint first saved building infrastructure the problem didn't need.</p>
+        </div>
+        <div class="lesson">
+          <span class="ln">06</span>
+          <h3>Confidence is a feature</h3>
+          <p>Teaching the tool to say "route this to a human" on genuinely ambiguous cases mattered as much as getting the confident cases right.</p>
+        </div>
+        <div class="lesson">
+          <span class="ln">07</span>
+          <h3>Small, verified steps compound</h3>
+          <p>44% → 100% decision accuracy came from nine narrow, independently re-checked changes against all 27 cases — not one rewrite.</p>
+        </div>
+        <div class="lesson">
+          <span class="ln">08</span>
+          <h3>Domain judgment is still the PM's job</h3>
+          <p>Two of the sharpest fixes this session — treating review-only corroboration as weaker evidence, and refusing to reward Host Responsiveness's bonus on raw silence instead of a real complaint — both came from product reasoning, not from re-reading code.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHAT'S NEXT -->
+  <section class="slide next">
+    <div class="slide-inner">
+      <div class="head">
+        <span class="eyebrow">Open items</span>
+        <h2>What isn't finished yet — on purpose, said plainly.</h2>
+      </div>
+      <div class="next-list">
+        <div class="next-item">
+          <span class="pill open">Data-limited</span>
+          <p>Two remaining "disputed" golden cases don't contain a detectable signal for the uncertainty their rationale describes — the input data would need to change before a heuristic safely could.</p>
+        </div>
+        <div class="next-item">
+          <span class="pill watch">Threshold</span>
+          <p>The groundedness release gate ("zero unsupported claims, dataset-wide") has failed every run so far — worth deciding whether that's the right bar or an overly strict one.</p>
+        </div>
+        <div class="next-item">
+          <span class="pill open">Uncalibrated</span>
+          <p>Host Responsiveness's base severity weight is still lower-confidence than the other four categories and hasn't been recalibrated against the golden set the same way Safety was.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COLOPHON -->
+  <section class="slide colophon">
+    <div class="slide-inner">
+      <div class="head">
+        <span class="eyebrow">End of case file</span>
+        <h2>Built, measured, and still being watched.</h2>
+      </div>
+      <p style="font-size: 15.5px; color: var(--ink-soft); max-width: 60ch; margin-top: 4px;">7 working days, 8 commits, 10 eval runs. The product brief, the eval rubric, the golden dataset, and the full run history all live in the repo — nothing in this deck is asserted without a number behind it.</p>
+      <div class="repo-tags">
+        <span>product-brief.md</span>
+        <span>eval-criteria.md</span>
+        <span>eval-results.md · 10 runs</span>
+        <span>scripts/eval/golden-dataset.ts · 27 cases</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+</body>
+</html>
